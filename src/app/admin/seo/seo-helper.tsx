@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import type { SeoDraft } from "@/lib/seo/types";
+import { useState, type SubmitEvent } from "react";
+import type { ActionResult, SeoDraft } from "@/lib/seo";
 
 const SAMPLE_TITLE = "Neon Nights Indoor Music Festival";
 const SAMPLE_DESCRIPTION =
@@ -25,63 +24,38 @@ const STATUS_STYLE: Record<SeoDraft["status"], string> = {
   rejected: "bg-red-100 text-red-800",
 };
 
+/** Calls a server action; unexpected failures (e.g. network) become an error message. */
+async function callAction(action: () => Promise<ActionResult>): Promise<ActionResult> {
+  try {
+    return await action();
+  } catch {
+    return { error: "Request failed. Please try again." };
+  }
+}
+
 // ---------------------------------------------------------------------------
-// API helpers
+// Login form: shown when the server finds no valid admin session
 // ---------------------------------------------------------------------------
 
-type ApiResult = {
-  ok: boolean;
-  status: number;
-  data: { error?: string; fields?: Record<string, string[]>; draft?: SeoDraft };
+type LoginFormProps = {
+  loginAction: (password: string) => Promise<ActionResult>;
 };
 
-/** POST JSON to our own API. The browser sends the session cookie automatically. */
-async function postJson(url: string, body: unknown): Promise<ApiResult> {
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json().catch(() => ({}));
-    return { ok: response.ok, status: response.status, data };
-  } catch {
-    return { ok: false, status: 0, data: { error: "Network error. Please try again." } };
-  }
-}
-
-/** Turns an API error into one readable line, including field validation errors. */
-function getErrorMessage(data: ApiResult["data"]): string {
-  const messages = [data.error ?? "Something went wrong"];
-  for (const [field, fieldMessages] of Object.entries(data.fields ?? {})) {
-    messages.push(`${field}: ${fieldMessages.join(", ")}`);
-  }
-  return messages.join(" | ");
-}
-
-// ---------------------------------------------------------------------------
-// Login form (shown when the server says there is no valid admin session)
-// ---------------------------------------------------------------------------
-
-export function LoginForm() {
-  const router = useRouter();
+export function LoginForm({ loginAction }: LoginFormProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
 
-    const result = await postJson("/api/auth/login", { password });
-    setLoading(false);
+    // On success the server sets the cookie and re-renders the page
+    const result = await callAction(() => loginAction(password));
 
-    if (!result.ok) {
-      setError(getErrorMessage(result.data));
-      return;
-    }
-    router.refresh(); // the server re-checks the new cookie and renders the helper
+    setLoading(false);
+    if (result.error) setError(result.error);
   }
 
   return (
@@ -105,11 +79,17 @@ export function LoginForm() {
 }
 
 // ---------------------------------------------------------------------------
-// SEO helper (shown only to a logged-in admin)
+// SEO helper: shown only to a logged-in admin
 // ---------------------------------------------------------------------------
 
-export function SeoHelper({ allowSimulation }: { allowSimulation: boolean }) {
-  const router = useRouter();
+type SeoHelperProps = {
+  generateAction: (request: { title: string; description: string; simulate?: string }) => Promise<ActionResult>;
+  reviewAction: (request: { id: string; decision: "approve" | "reject" }) => Promise<ActionResult>;
+  logoutAction: () => Promise<ActionResult>;
+  allowSimulation: boolean;
+};
+
+export function SeoHelper({ generateAction, reviewAction, logoutAction, allowSimulation }: SeoHelperProps) {
   const [title, setTitle] = useState(SAMPLE_TITLE);
   const [description, setDescription] = useState(SAMPLE_DESCRIPTION);
   const [simulate, setSimulate] = useState("");
@@ -117,30 +97,18 @@ export function SeoHelper({ allowSimulation }: { allowSimulation: boolean }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /** Shows the draft returned by the server, or the error. */
-  function showResult(result: ApiResult) {
-    if (result.status === 401) {
-      router.refresh(); // session expired: the server will show the login form
-      return;
-    }
-    if (!result.ok || !result.data.draft) {
-      setError(getErrorMessage(result.data));
-      return;
-    }
-    setDraft(result.data.draft);
-  }
-
-  async function handleGenerate(event: FormEvent<HTMLFormElement>) {
+  async function handleGenerate(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
     setDraft(null);
 
-    const body = simulate ? { title, description, simulate } : { title, description };
-    const result = await postJson("/api/seo/generate", body);
+    const request = simulate ? { title, description, simulate } : { title, description };
+    const result = await callAction(() => generateAction(request));
 
     setLoading(false);
-    showResult(result);
+    if (result.error) setError(result.error);
+    if (result.draft) setDraft(result.draft);
   }
 
   async function handleReview(decision: "approve" | "reject") {
@@ -148,22 +116,19 @@ export function SeoHelper({ allowSimulation }: { allowSimulation: boolean }) {
     setLoading(true);
     setError("");
 
-    const result = await postJson(`/api/seo/drafts/${draft.id}/review`, { decision });
+    const result = await callAction(() => reviewAction({ id: draft.id, decision }));
 
     setLoading(false);
-    showResult(result);
-  }
-
-  async function handleLogout() {
-    await postJson("/api/auth/logout", {});
-    router.refresh();
+    if (result.error) setError(result.error);
+    if (result.draft) setDraft(result.draft);
   }
 
   return (
     <div className="mt-8 space-y-6">
       <div className="flex items-center justify-between text-sm">
         <span className="text-zinc-600">Signed in as demo admin</span>
-        <button onClick={handleLogout} className={`${button} border border-zinc-300`}>
+        {/* Deleting the cookie re-renders the page, which then shows the login form */}
+        <button onClick={() => callAction(logoutAction)} className={`${button} border border-zinc-300`}>
           Log out
         </button>
       </div>
@@ -206,7 +171,7 @@ export function SeoHelper({ allowSimulation }: { allowSimulation: boolean }) {
 
       {/* Error message */}
       {error && (
-        <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className="whitespace-pre-line rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </p>
       )}
