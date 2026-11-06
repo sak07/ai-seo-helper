@@ -25,13 +25,15 @@ const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 export default function AdminSeoPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">AI SEO Helper</h1>
-      <p className="mt-1 text-sm text-zinc-600">
-        Admin-only prototype · mock AI provider · fictional content only · human approval required
-      </p>
+    <main className="mx-auto w-full max-w-2xl px-4 py-16">
+      <header className="text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">AI SEO Helper</h1>
+        <p className="mt-2 text-sm text-zinc-500">
+          Admin-only prototype · mock AI provider · fictional content only · human approval required
+        </p>
+      </header>
       {/* With cacheComponents, reading the session cookie must happen inside Suspense */}
-      <Suspense fallback={<p className="mt-8 text-sm text-zinc-500">Checking session...</p>}>
+      <Suspense fallback={<p className="mt-10 text-center text-sm text-zinc-500">Checking session...</p>}>
         <AdminGate />
       </Suspense>
     </main>

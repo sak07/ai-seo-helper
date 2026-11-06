@@ -8,9 +8,9 @@ const SAMPLE_DESCRIPTION =
   "A fictional evening of live electronic music, light shows and food stalls at Space42 Arena, created for this SEO prototype. Friends and families can explore several stages and an immersive lighting experience.";
 
 // Shared Tailwind classes
-const card = "rounded-lg border border-zinc-200 bg-white p-5 shadow-sm";
+const card = "rounded-xl border border-zinc-200 bg-white p-6 shadow-sm";
 const input = "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none";
-const button = "rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50";
+const button = "rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50";
 
 const STATUS_LABEL: Record<SeoDraft["status"], string> = {
   pending_approval: "Pending Approval",
@@ -59,7 +59,7 @@ export function LoginForm({ loginAction }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleLogin} className={`${card} mt-8 max-w-sm space-y-3`}>
+    <form onSubmit={handleLogin} className={`${card} mx-auto mt-10 max-w-sm space-y-4`}>
       <h2 className="font-semibold">Admin login</h2>
       <p className="text-xs text-zinc-500">Demo authentication only, not production auth.</p>
       <input
@@ -71,7 +71,7 @@ export function LoginForm({ loginAction }: LoginFormProps) {
         onChange={(e) => setPassword(e.target.value)}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <button disabled={loading} className={`${button} w-full bg-zinc-900 text-white`}>
+      <button disabled={loading} className={`${button} w-full bg-zinc-900 text-white hover:bg-zinc-700`}>
         {loading ? "Signing in..." : "Sign in"}
       </button>
     </form>
@@ -124,11 +124,11 @@ export function SeoHelper({ generateAction, reviewAction, logoutAction, allowSim
   }
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-10 space-y-6">
       <div className="flex items-center justify-between text-sm">
         <span className="text-zinc-600">Signed in as demo admin</span>
         {/* Deleting the cookie re-renders the page, which then shows the login form */}
-        <button onClick={() => callAction(logoutAction)} className={`${button} border border-zinc-300`}>
+        <button onClick={() => callAction(logoutAction)} className={`${button} border border-zinc-300 hover:bg-zinc-100`}>
           Log out
         </button>
       </div>
@@ -164,7 +164,7 @@ export function SeoHelper({ generateAction, reviewAction, logoutAction, allowSim
           </label>
         )}
 
-        <button disabled={loading} className={`${button} bg-zinc-900 text-white`}>
+        <button disabled={loading} className={`${button} bg-zinc-900 text-white hover:bg-zinc-700`}>
           {loading ? "Working..." : "Generate SEO Suggestions"}
         </button>
       </form>
@@ -222,14 +222,14 @@ export function SeoHelper({ generateAction, reviewAction, logoutAction, allowSim
               <button
                 disabled={loading}
                 onClick={() => handleReview("approve")}
-                className={`${button} bg-green-700 text-white`}
+                className={`${button} bg-green-700 text-white hover:bg-green-800`}
               >
                 Approve
               </button>
               <button
                 disabled={loading}
                 onClick={() => handleReview("reject")}
-                className={`${button} border border-red-300 text-red-700`}
+                className={`${button} border border-red-300 text-red-700 hover:bg-red-50`}
               >
                 Reject
               </button>
